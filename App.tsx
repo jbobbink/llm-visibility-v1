@@ -149,7 +149,7 @@ const MainApp: React.FC = () => {
     } catch (e) {
       console.error("Failed to load saved reports:", e);
     }
-  };</parameter>
+  };
 
   const handleProgressUpdate = useCallback((updatedTasks: Task[]) => {
     setTasks(updatedTasks);
@@ -213,7 +213,7 @@ const MainApp: React.FC = () => {
         alert('Failed to delete report. Please try again.');
       }
     }
-  }, []);</parameter>
+  }, []);
 
   const handleViewReport = (htmlContent: string) => {
     setViewingReportHtml(htmlContent);
