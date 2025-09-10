@@ -62,7 +62,8 @@ export interface SavedReport {
   createdAt: string;
   clientName: string;
   htmlContent: string;
-  shareableLink?: string;
+  shareToken: string;
+  userId?: string | null;
 }
 
 export interface Task {

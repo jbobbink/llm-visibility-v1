@@ -44,24 +44,14 @@ export const SavedReportsList: React.FC<SavedReportsListProps> = ({ reports, onV
               >
                 View
               </button>
-               {report.shareableLink ? (
-                  <button 
-                    onClick={() => handleCopyLink(report.shareableLink!)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-md transition-colors w-24 text-center"
-                    title="Copy shareable link"
-                  >
-                   {copiedLink === report.shareableLink ? 'Copied!' : 'Copy Link'}
-                  </button>
-               ) : (
-                  <button 
-                    onClick={() => onShare(report.id)}
-                    disabled={sharingReportId === report.id}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-md transition-colors w-24 text-center disabled:bg-gray-600 disabled:cursor-wait"
-                    title="Create a shareable link"
-                  >
-                    {sharingReportId === report.id ? 'Creating...' : 'Share'}
-                  </button>
-               )}
+              <button 
+                onClick={() => onShare(report.id)}
+                disabled={sharingReportId === report.id}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-md transition-colors w-24 text-center disabled:bg-gray-600 disabled:cursor-wait"
+                title="Get shareable link"
+              >
+                {sharingReportId === report.id ? 'Creating...' : 'Share'}
+              </button>
               <button 
                 onClick={() => onDelete(report.id)}
                 className="bg-red-800/50 hover:bg-red-800 text-red-300 font-bold py-2 px-3 rounded-md transition-colors"

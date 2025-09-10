@@ -1,12 +1,15 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useParams } from 'react-router-dom';
 import { SetupForm } from './components/SetupForm';
 import { ResultsDashboard } from './components/ResultsDashboard';
+import { SharedReportViewer } from './components/SharedReportViewer';
 import { runAnalysis } from './services/geminiService';
+import { saveReport, getUserReports, deleteReport, generateShareUrl } from './services/reportService';
 import type { AnalysisResult, AppConfig, SavedReport, Task } from './types';
 import { LoadingStatus } from './components/LoadingSpinner';
 import { SavedReportsList } from './components/SavedReportsList';
 import { ReportViewer } from './components/ReportViewer';
-import { generateHtmlReport, createHostedReport } from './utils/exportUtils';
+import { generateHtmlReport } from './utils/exportUtils';</parameter>
 
 const TravykLogo: React.FC = () => (
     <svg aria-label="TRAVYK Logo" height="28" viewBox="0 0 180 32" xmlns="http://www.w3.org/2000/svg">
@@ -65,7 +68,7 @@ const ShareLinkModal: React.FC<ShareLinkModalProps> = ({ sharingState, onClose }
                     {sharingState.isSharing && (
                         <div className="flex items-center space-x-3">
                             <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-green-500"></div>
-                            <p className="text-gray-300">Creating a secure, shareable link...</p>
+                            <p className="text-gray-300">Creating a shareable link...</p>
                         </div>
                     )}
                     {sharingState.error && (
@@ -75,7 +78,7 @@ const ShareLinkModal: React.FC<ShareLinkModalProps> = ({ sharingState, onClose }
                     )}
                     {sharingState.link && (
                         <div>
-                            <p className="text-gray-400 mb-2">Your report is hosted and can be shared with this public link:</p>
+                            <p className="text-gray-400 mb-2">Your report can be shared with this public link:</p>
                             <div className="flex space-x-2">
                                 <input 
                                     type="text" 
@@ -102,7 +105,29 @@ const ShareLinkModal: React.FC<ShareLinkModalProps> = ({ sharingState, onClose }
 };
 
 
-const App: React.FC = () => {
+const SharedReportRoute: React.FC = () => {
+  const { shareToken } = useParams<{ shareToken: string }>();
+  
+  if (!shareToken) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-400 mb-4">Invalid Share Link</h1>
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+          >
+            Go to Main App
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  return <SharedReportViewer shareToken={shareToken} />;
+};
+
+const MainApp: React.FC = () => {
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [results, setResults] = useState<AnalysisResult[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -114,16 +139,17 @@ const App: React.FC = () => {
   const [sharingReport, setSharingReport] = useState<{ reportId: string, isSharing: boolean, link: string | null, error: string | null } | null>(null);
 
   useEffect(() => {
+    loadReports();
+  }, []);
+
+  const loadReports = async () => {
     try {
-      const storedReports = localStorage.getItem('llm_visibility_reports');
-      if (storedReports) {
-        setSavedReports(JSON.parse(storedReports));
-      }
+      const reports = await getUserReports();
+      setSavedReports(reports);
     } catch (e) {
       console.error("Failed to load saved reports:", e);
-      localStorage.removeItem('llm_visibility_reports');
     }
-  }, []);
+  };</parameter>
 
   const handleProgressUpdate = useCallback((updatedTasks: Task[]) => {
     setTasks(updatedTasks);
@@ -158,51 +184,36 @@ const App: React.FC = () => {
   const handleSaveReport = useCallback(() => {
     if (!results || !appConfig) return;
 
+    try {
     const htmlContent = generateHtmlReport(results, appConfig);
-    const newReport: SavedReport = {
-        id: `report-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        clientName: appConfig.clientName,
-        htmlContent: htmlContent,
-    };
-
-    const updatedReports = [...savedReports, newReport];
-    setSavedReports(updatedReports);
-    localStorage.setItem('llm_visibility_reports', JSON.stringify(updatedReports));
+      const newReport = await saveReport(appConfig.clientName, htmlContent);
+      setSavedReports(prev => [newReport, ...prev]);
     alert('Report saved successfully!');
-  }, [results, appConfig, savedReports]);
+    } catch (e) {
+      console.error('Error saving report:', e);
+      alert('Failed to save report. Please try again.');
+    }
+  }, [results, appConfig]);
 
   const handleShareSavedReport = useCallback(async (reportId: string) => {
     const reportToShare = savedReports.find(r => r.id === reportId);
     if (!reportToShare) return;
 
-    if (reportToShare.shareableLink) {
-        setSharingReport({ reportId, isSharing: false, link: reportToShare.shareableLink, error: null });
-        return;
-    }
-
-    setSharingReport({ reportId, isSharing: true, link: null, error: null });
-    try {
-        const newLink = await createHostedReport(reportToShare.htmlContent, reportToShare.clientName);
-        const updatedReports = savedReports.map(r =>
-            r.id === reportId ? { ...r, shareableLink: newLink } : r
-        );
-        setSavedReports(updatedReports);
-        localStorage.setItem('llm_visibility_reports', JSON.stringify(updatedReports));
-        setSharingReport({ reportId, isSharing: false, link: newLink, error: null });
-    } catch (e) {
-        const errorMsg = e instanceof Error ? e.message : 'An unknown error occurred.';
-        setSharingReport({ reportId: reportId, isSharing: false, link: null, error: errorMsg });
-    }
+    const shareUrl = generateShareUrl(reportToShare.shareToken);
+    setSharingReport({ reportId, isSharing: false, link: shareUrl, error: null });
   }, [savedReports]);
 
-  const handleDeleteReport = useCallback((reportId: string) => {
+  const handleDeleteReport = useCallback(async (reportId: string) => {
     if (confirm('Are you sure you want to delete this report? This action cannot be undone.')) {
-        const updatedReports = savedReports.filter(report => report.id !== reportId);
-        setSavedReports(updatedReports);
-        localStorage.setItem('llm_visibility_reports', JSON.stringify(updatedReports));
+      try {
+        await deleteReport(reportId);
+        setSavedReports(prev => prev.filter(report => report.id !== reportId));
+      } catch (e) {
+        console.error('Error deleting report:', e);
+        alert('Failed to delete report. Please try again.');
+      }
     }
-  }, [savedReports]);
+  }, []);</parameter>
 
   const handleViewReport = (htmlContent: string) => {
     setViewingReportHtml(htmlContent);
@@ -260,4 +271,14 @@ const App: React.FC = () => {
   );
 };
 
+const App: React.FC = () => {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<MainApp />} />
+        <Route path="/shared/:shareToken" element={<SharedReportRoute />} />
+      </Routes>
+    </Router>
+  );
+};
 export default App;
