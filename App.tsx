@@ -9,7 +9,7 @@ import type { AnalysisResult, AppConfig, SavedReport, Task } from './types';
 import { LoadingStatus } from './components/LoadingSpinner';
 import { SavedReportsList } from './components/SavedReportsList';
 import { ReportViewer } from './components/ReportViewer';
-import { generateHtmlReport } from './utils/exportUtils';</parameter>
+import { generateHtmlReport } from './utils/exportUtils';
 
 const TravykLogo: React.FC = () => (
     <svg aria-label="TRAVYK Logo" height="28" viewBox="0 0 180 32" xmlns="http://www.w3.org/2000/svg">
